@@ -1,0 +1,187 @@
+scrapy框架
+
+- 什么是框架？
+    - 集成很多功能且具有很强通用性的一个项目模板
+
+- 如何学习框架？
+    - 学习框架封装的各种功能的详细用法
+    - 底层源码
+
+- 什么是scrapy？
+    - 爬虫中封装的一个star框架
+    - 功能：高性能持久化存储，异步的数据下载，高性能的数据解析，分布式
+    - 环境安装：
+      - mac/linux: pip install scrapy
+      - windows:
+        - pip install wheel
+        - 下载twisted: http://www.lfd.uci.edu/~gohlke/pythonlibs/#twisted (异步辅助)
+        - 安装twisted
+        - pip install pywin32
+        - pip install scrapy
+
+    - 终端命令创建工程：scrapy startproject FirstBlood
+      - scrapy.cfg 配置文件
+      - FirstBlood文件夹；
+        - spiders文件夹: 爬虫文件夹/爬虫目录，在这里存放爬虫文件
+                        - 创建爬虫文件 scrapy genspider spiderName www.xxx.com (起始url后面可以修改)
+        - 其他配置文件
+
+    - 执行工程：
+      - scrapy crawl sipderName
+
+
+- scrapy 数据解析
+
+- scrapy 持久化存储
+  - 基于终端指令：
+    - 要求：只可以将parse方法的返回值存储到本地的文本文件
+    - scrapy crawl NAME -o filePath
+    - 注意持久化存储的类型只能是'json', 'jsonlines', 'jl', 'csv', 'xml', 'marshal', 'pickle'
+    - 好处：简洁高效便捷
+    - 缺点：局限性比较强（数据只可以存到指定后缀的文本文件中）
+
+  - 基于管道：
+    - 编码流程：
+      - 数据解析
+      - 在item类中定义相关的属性
+      - 将解析的数据封装存储到item类型的对象（注意你的目录中有一个items.py）
+      - 将item类型对象提交给管道(pipelines.py)进行持久化存储
+      - 在管道类的process_item中将接收到的item对象中存储的数据进行持久化存储
+      - 在配置文件中开启管道
+
+    - 为什么用item: 因为scrapy在设计时存储用的管道类的process_item只能处理item对象，迫不得已我们得加一个item对象（性能更优）
+
+    - 好处：
+      - 通用性强
+    - 弊端：
+      - 编码流程稍显繁琐
+
+    - 面试题：将爬取数据一份存储到本地，一份存储到数据库，如何实现？
+      - 记得刚才说到在settings中有一个管道类开启的优先级，我们可以用多个管道类
+      - pipelines.py中每个管道类对应的是将数据存储到一个平台
+      - 爬虫文件提交的item只会给管道文件中第一个被执行的管道类接受
+      - 需要在process_item中加入 return item 将item传递给下一个即将执行的管道类
+
+
+- 基于Spider副类的全站数据爬取
+  - 全站：将网站中某板块下的全部页码对应的页面数据进行爬取
+  - 需求：爬取校花网日韩明星板块下所有页码里的图片的文字名称 http://www.521609.com/ziliao/rihan/index.html
+  - 实现方式：
+     - 把所有页码的url都存在start_urls列表中（不推荐）
+     - 自行手动进行请求发送
+       - yield scrapy.Request(url, callback)  (callback重复调用数据解析)
+
+
+- 五大核心组件
+  - Q: 目前我们做的一些操作都是在类中进行的，但类是需要实例化才能调用方法的，这些是谁实例化的？还有我们的自动请求是怎么调用的？
+  - 引擎(Scrapy)、调度器(Scheduler)、Spider、管道(Pipeline)、下载器（Downloader）
+
+  - 注：Twisted在下载器中异步
+  - Spider:
+      - 产生url，对url进行请求发送（自动/手动）
+      - 数据解析
+    - 将url封装成请求对象，发送给引擎，引擎将它发给调度器
+
+  - 调度器：
+    - 组成部分：
+      - 过滤器：去重
+      - 队列：去重后的对象放到队列中
+
+    - 从队列中调度请求对象给引擎，引擎给下载器，下载器去互联网中下载，
+    - 下载器获得response还给引擎，引擎给Spider，Spider传给parse方法
+    - 解析完封装到item给引擎，引擎给管道，管道接受item进行持久化存储
+
+  - 可见引擎处在一个非常核心的位置，为什么其他组件都要经过引擎，二部直接传输？
+    - 1. 引擎用于数据流处理，所有的数据流都要被引擎拦截处理
+    - 2. 引擎触发事务（对象实例化、调用方法）
+         - 引擎如何知道何时触发事务？
+           - 根据拿到的数据流类型判断，触发不同事务
+
+
+- 请求传参
+  - 使用场景：如果要爬取解析的数据不在同一张页面中（深度爬取）
+  - 需求：爬取BOSS的岗位名称 + 岗位描述（详情页）
+         - 注：返回空结果是正常的，因为BOSS招聘的反爬特别狠，主要学操作就行
+
+  - 什么是请求传参：在请求时将item传递给请求使用的回调函数，因为我们想把不同页面的解析数据封装到同一个item中
+    - yield scrapy.Request(detail_url, callback=self.parse_detail, meta={'item': item})
+    - 接收item： item = response.meta['item']
+
+
+
+- 图片数据爬取之ImagesPipeline
+  - 基于scrapy爬取字符串类型和图片类型的区别：
+    - 字符串：只需要基于xpath解析且提交管道进行持久化存储
+    - 图片：xpath只能解析到图片src的属性值，还要单独对图片地址发起请求获取图片二进制类型的数据
+
+  - ImagesPipeline
+    - 只需要解析到图片src的属性值，提交到管道，管道就会对图片的src进行请求发送并获取二进制数据，且帮我们进行持久化存储
+    - 使用流程：
+      - 需求：爬取站长素材的高清图片 http://sc.chinaz.com/tupian/
+      - 数据解析出图片地址src
+      - 将存储图片地址的item提交到指定的管道类
+      - 在管道中自定义一个基于ImagesPipeline的一个管道类
+        - get_media_request
+        - file_path
+        - item_completed
+      - 在settings中加入图片存储的目录：  IMAGES_STORE = './imgs'
+      - 开启管道：记得要基于我们自定义的类
+
+
+
+
+- 中间件
+  - 引擎和下载器之间：下载中间件
+  - 引擎和Spider之间：爬虫中间件
+
+  - 下载中间件：
+    - 拦截到引擎给下载器发送的请求对象，也可以拦截到下载器给引擎的响应对象
+    - 拦截请求：
+        - UA伪装（settings中是全局的伪装，但中间件可以给每个请求加不同的UA伪装）：process_request
+        - 代理ip（高频请求可能会被ban）: process_exception, return request
+
+    - 拦截响应：
+        - 篡改响应数据、响应对象（e.g.动态加载不能直接被解析到，我们可以进行篡改获取想要的响应数据）
+        - 需求：爬取网页新闻中的新闻数据（标题 + 内容）
+            - 1. 通过网易新闻首页解析出五大板块对应的详情页的url（没有动态加载）
+            - 2. 在板块内爬取到新闻标题（动态加载）
+            - 3. 通过解析新闻详情页的url获取页面源码，解析出新闻内容（非动态加载）
+
+
+
+
+- CrawlSpider：
+    - Spider的一个子类
+    - 全站数据爬取的方式:
+       - 基于Spider: 手动请求
+       - 基于CrawlSpider
+    - CrawlSpider的使用
+       - 创建一个工程 scrapy startproject sunPro
+       - cd xxx
+       - 创建爬虫文件（此时要基于CrawlSpider）:
+         - scrapy genspider -t crawl NAME www.xxx.com
+
+       - 链接提取器(LinkExtractor)
+           - 作用：根据指定规则（allow）进行指定链接的提取
+       - 规则解析器(Rule)
+           - 作用：将链接提取器提取到的链接进行 指定规则(callback) 的解析
+
+    - 需求：爬取sun网站中编号、新闻标题、新闻内容、标号 http://wz.sun0769.com/political/index/politicsNewest?
+       - 分析：爬取的数据没有再同一张页面中
+       - 1. 可以使用链接提取器提取所有页码的链接
+       - 2. 让链接提取器提取所有新闻详情页的链接
+
+
+
+
+- 分布式爬虫
+  - 概念：我们需要搭建一个分布式的机群，让其对一组资源进行分布联合爬取
+  - 作用：提升爬取数据效率
+
+  - 如何实现分布式？
+    - 安装 scrapy-redis 组件
+    - 原生scrapy是不可以实现分布式爬虫的，必须要与scrapy-redis结合实现
+      - WHY？ 各大电脑的5大核心组件没有关联（需要同一个调度器、管道）
+    - scrapy-redis组件作用：
+      - 可以给原生的scrapy框架提供可以被共享恶管道和调度器
+    - 实现流程
