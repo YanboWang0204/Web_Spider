@@ -1,0 +1,60 @@
+聚焦爬虫（爬取页面中指定的页面内容）
+       - 编码流程：
+         - 指定url
+         - 发起请求
+         - 获取相应数据
+         - 数据解析
+         - 持久化存储
+
+数据解析分类：
+       - 正则
+       - bs4
+       - xpath （***）
+
+数据解析原理：
+      - 解析的局部文本内容都会在标签之间或者标签对应的属性中进行存储
+      - 1. 进行指定标签的定位
+      - 2. 标签或者标签对应的属性中存储的数据值进行提取（解析）
+
+正则解析：
+<div class="thumb">
+
+<a href="/article/123424058" target="_blank">
+<img src="//pic.qiushibaike.com/system/pictures/12342/123424058/medium/JPVO5AAE1XA6I8GX.jpg" alt="糗事#123424058" class="illustration" width="100%" height="auto">
+</a>
+</div>
+
+ex = '<div class="thumb">.*?<img src="(.*?)" alt.*?</div>'
+
+
+bs4数据解析（Python专用）
+   - 数据解析原理：
+     - 1.标签定位
+     - 2.提取标签、标签属性中存储的数据值
+
+   - bs4原理：
+     - 1. 实例化一个BeautifulSoup对象，并将页面源码数据加载到该对象中
+     - 2. 通过调用BeautifulSoup对象中相关的属性或者方法进行标签定位和数据提取
+
+   - 环境安装
+     - pip install bs4
+     - pip install lxml  # 解析器lxml
+
+
+
+xpath解析：最常用且最便捷高效、通用性最强的一种解析方式
+
+     - xpath解析原理：
+            - 1. 实例化一个etree对象，且将被解析的页面源码加载到该对象中
+            - 2. 调用etree对象中的xpath方法，结合着xpath表达式实现 标签的定位和内容的捕获
+     - 环境安装
+            - pip install lxml
+     - 如何实例化一个etree对象：
+            - 导包：from lxml import etree
+
+            - 1. 将本地的html文档中的源码数据加载到etree对象中：
+                 etree.parse(filePath)
+            - 2. 将互联网上获取的页面源码数据加载到对象中：
+                 etree.HTML('page_text')
+
+            - xpath('xpath表达式')
